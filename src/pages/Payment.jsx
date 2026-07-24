@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Helmet } from 'react-helmet-async';
+import QRCode from 'qrcode';
 import logoImg from '../assets/logo.png';
 
 const loadScript = (src) => {
@@ -17,9 +18,9 @@ const loadScript = (src) => {
 
 // UPI Details
 const upiDetails = {
-  phonepe: { id: '9392881913@ybl', name: 'PhonePe', color: '#5F259F', scheme: 'phonepe://pay', fallback: 'https://phon.pe/pay' },
-  gpay: { id: 'varunthejparimi143@oksbi', name: 'GPay', color: '#4285F4', scheme: 'tez://upi/pay', fallback: 'https://gpay.app.goo.gl/pay' },
-  paytm: { id: '9392881913@ptsbi', name: 'Paytm', color: '#00BAF2', scheme: 'paytmmp://pay', fallback: 'https://paytm.com/' }
+  phonepe: { id: '9392881913@ybl', mobile: '9392881913', name: 'PhonePe', color: '#5F259F' },
+  gpay: { id: 'varunthejparimi143@oksbi', mobile: '9392881913', name: 'GPay', color: '#4285F4' },
+  paytm: { id: '9392881913@ptsbi', mobile: '9392881913', name: 'Paytm', color: '#00BAF2' }
 };
 
 const PaymentPage = () => {
@@ -46,9 +47,20 @@ const PaymentPage = () => {
 
   // UPI State
   const [activeUpiTab, setActiveUpiTab] = useState('phonepe');
-  const [copied, setCopied] = useState(false);
+  const [copiedField, setCopiedField] = useState(''); // 'mobile', 'upi', ''
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [showUtrInput, setShowUtrInput] = useState(false);
   const [utr, setUtr] = useState('');
+
+  useEffect(() => {
+    if (activeModal === 'upi' && amountToPay > 0) {
+      const currentDetail = upiDetails[activeUpiTab] || upiDetails.phonepe;
+      const upiUri = `upi://pay?pa=${currentDetail.id}&pn=${encodeURIComponent('Varun Thej Parimi')}&am=${amountToPay}&cu=INR&tn=${encodeURIComponent(formData.projectName || 'Homies Studio Payment')}`;
+      QRCode.toDataURL(upiUri, { width: 240, margin: 2, color: { dark: '#000000', light: '#ffffff' } })
+        .then(url => setQrCodeUrl(url))
+        .catch(err => console.error('QR code generation error:', err));
+    }
+  }, [activeModal, activeUpiTab, amountToPay, formData.projectName]);
 
   // Card State
   const [cardData, setCardData] = useState({ number: '', name: '', expiry: '', cvv: '' });
@@ -247,24 +259,17 @@ const PaymentPage = () => {
 
   // UPI Helpers
   const triggerUpiDeepLink = (app) => {
-    const { id, scheme, fallback } = upiDetails[app];
-    const encodedPn = encodeURIComponent('Homies Studio');
-    const encodedTn = encodeURIComponent(formData.projectName || 'Project Deposit');
-    const deepLink = `${scheme}?pa=${encodeURIComponent(id)}&pn=${encodedPn}&am=${amountToPay}&cu=INR&tn=${encodedTn}`;
-    
-    // Attempt deep link
+    const { id } = upiDetails[app];
+    const encodedPn = encodeURIComponent('Varun Thej Parimi');
+    const encodedTn = encodeURIComponent(formData.projectName || 'Homies Studio Payment');
+    const deepLink = `upi://pay?pa=${encodeURIComponent(id)}&pn=${encodedPn}&am=${amountToPay}&cu=INR&tn=${encodedTn}`;
     window.location.href = deepLink;
-    
-    // Fallback timer (in case app isn't installed)
-    setTimeout(() => {
-      window.open(`${fallback}?pa=${encodeURIComponent(id)}&pn=${encodedPn}&am=${amountToPay}&cu=INR`, '_blank', 'noopener,noreferrer');
-    }, 2000);
   };
 
-  const handleCopyUpiId = (id) => {
-    navigator.clipboard.writeText(id);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyText = (text, fieldName) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(''), 2000);
   };
 
   const handleUpiSubmit = (e) => {
@@ -459,10 +464,10 @@ const PaymentPage = () => {
         <AnimatePresence>
           {activeModal === 'upi' && (
             <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-              <motion.div initial={{ scale: 0.95, y: 50, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 50, opacity: 0 }} style={{ background: '#111', border: '1px solid #F5A623', borderRadius: '24px', padding: '2rem', width: '100%', maxWidth: '420px', position: 'relative', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
+              <motion.div initial={{ scale: 0.95, y: 50, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 50, opacity: 0 }} style={{ background: '#111', border: '1px solid #F5A623', borderRadius: '24px', padding: '1.8rem', width: '100%', maxWidth: '440px', position: 'relative', overflowY: 'auto', maxHeight: '90vh', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
                 <button onClick={() => setActiveModal(null)} style={{ position: 'absolute', top: '1rem', right: '1.2rem', background: 'none', border: 'none', color: '#aaa', fontSize: '2rem', cursor: 'pointer', zIndex: 10 }}>&times;</button>
                 
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', marginTop: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.2rem', marginTop: '0.5rem' }}>
                   {Object.keys(upiDetails).map(key => {
                     const isActive = activeUpiTab === key;
                     const c = upiDetails[key].color;
@@ -475,32 +480,61 @@ const PaymentPage = () => {
                 </div>
 
                 <motion.div key={activeUpiTab} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
-                  <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff', marginBottom: '1rem' }}>Paying ₹{amountToPay.toLocaleString('en-IN')} to Homies Studio</div>
-                    
-                    <button onClick={() => handleCopyUpiId(upiDetails[activeUpiTab].id)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.2)', color: '#fff', padding: '0.8rem 1.5rem', borderRadius: '8px', fontSize: '0.95rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.8rem', width: '100%', justifyContent: 'center' }}>
-                      <span style={{color: '#aaa'}}>UPI ID:</span> {upiDetails[activeUpiTab].id} 
-                      {copied ? <span style={{color: '#10b981'}}>✓</span> : '📋'}
+                  <div style={{ textAlign: 'center', marginBottom: '1.2rem' }}>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff', marginBottom: '0.3rem' }}>Paying ₹{amountToPay.toLocaleString('en-IN')}</div>
+                    <div style={{ fontSize: '0.85rem', color: '#aaa' }}>Varun Thej Parimi (Homies Studio)</div>
+                  </div>
+
+                  {/* QR Code Display */}
+                  {qrCodeUrl && (
+                    <div style={{ background: '#fff', padding: '0.8rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '0 auto 1.2rem', maxWidth: '220px', boxShadow: '0 8px 24px rgba(245, 166, 35, 0.15)' }}>
+                      <img src={qrCodeUrl} alt="UPI QR Code" style={{ width: '100%', height: 'auto', display: 'block' }} />
+                      <div style={{ color: '#000', fontSize: '0.75rem', fontWeight: 'bold', marginTop: '0.3rem', textAlign: 'center' }}>
+                        📷 Scan QR Code with PhonePe / GPay / Paytm
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Mobile Number Option */}
+                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.8rem 1rem', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: '#aaa' }}>Mobile Number (PhonePe / GPay / Paytm)</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#F5A623', fontFamily: 'monospace' }}>9392881913</div>
+                    </div>
+                    <button onClick={() => handleCopyText('9392881913', 'mobile')} style={{ background: 'rgba(245, 166, 35, 0.15)', border: '1px solid #F5A623', color: '#F5A623', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                      {copiedField === 'mobile' ? 'Copied ✓' : 'Copy'}
                     </button>
                   </div>
 
-                  <p style={{ color: '#aaa', fontSize: '0.9rem', textAlign: 'center', marginBottom: '1.5rem' }}>
-                    Tap the button below to open {upiDetails[activeUpiTab].name} and complete payment
-                  </p>
+                  {/* UPI ID Option */}
+                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.8rem 1rem', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: '#aaa' }}>{upiDetails[activeUpiTab].name} UPI ID</div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#fff', fontFamily: 'monospace' }}>{upiDetails[activeUpiTab].id}</div>
+                    </div>
+                    <button onClick={() => handleCopyText(upiDetails[activeUpiTab].id, 'upi')} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                      {copiedField === 'upi' ? 'Copied ✓' : 'Copy'}
+                    </button>
+                  </div>
 
-                  <button onClick={() => triggerUpiDeepLink(activeUpiTab)} style={{ width: '100%', padding: '1rem', background: upiDetails[activeUpiTab].color, color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', marginBottom: '2rem', boxShadow: `0 10px 20px ${upiDetails[activeUpiTab].color}40` }}>
-                    Open {upiDetails[activeUpiTab].name}
+                  <button onClick={() => triggerUpiDeepLink(activeUpiTab)} style={{ width: '100%', padding: '0.9rem', background: upiDetails[activeUpiTab].color, color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginBottom: '1.2rem', boxShadow: `0 10px 20px ${upiDetails[activeUpiTab].color}40` }}>
+                    Open {upiDetails[activeUpiTab].name} App
                   </button>
 
-                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem' }}>
+                  <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '0.7rem 0.9rem', marginBottom: '1.2rem', fontSize: '0.78rem', color: '#a7f3d0', lineHeight: '1.4' }}>
+                    <strong>💡 How to bypass UPI Risk Warnings:</strong><br/>
+                    If Paytm or PhonePe shows a risk policy warning for direct link, either <strong>scan the QR code above</strong> or search mobile number <strong>9392881913</strong> directly in your app.
+                  </div>
+
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.2rem' }}>
                     {!showUtrInput ? (
-                      <button onClick={() => setShowUtrInput(true)} style={{ width: '100%', padding: '1rem', background: '#F5A623', color: '#000', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}>
+                      <button onClick={() => setShowUtrInput(true)} style={{ width: '100%', padding: '0.9rem', background: '#F5A623', color: '#000', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}>
                         I've Paid
                       </button>
                     ) : (
-                      <form onSubmit={handleUpiSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <input type="text" placeholder="Enter 12-digit UTR No." value={utr} onChange={(e) => setUtr(e.target.value)} required style={{ width: '100%', padding: '1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid #F5A623', borderRadius: '8px', color: '#fff', textAlign: 'center', fontSize: '1.1rem', letterSpacing: '0.1em' }} />
-                        <button type="submit" style={{ width: '100%', padding: '1rem', background: '#10b981', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}>Submit UTR</button>
+                      <form onSubmit={handleUpiSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                        <input type="text" placeholder="Enter 12-digit UTR / Ref No." value={utr} onChange={(e) => setUtr(e.target.value)} required style={{ width: '100%', padding: '0.8rem', background: 'rgba(255,255,255,0.05)', border: '1px solid #F5A623', borderRadius: '8px', color: '#fff', textAlign: 'center', fontSize: '1rem', letterSpacing: '0.1em' }} />
+                        <button type="submit" style={{ width: '100%', padding: '0.9rem', background: '#10b981', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}>Submit UTR & Generate Invoice</button>
                       </form>
                     )}
                   </div>
