@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Helmet } from 'react-helmet-async';
-import QRCode from 'qrcode';
 import logoImg from '../assets/logo.png';
+
+const RAZORPAY_PAYMENT_LINK = 'https://rzp.io/rzp/2wIs5eh';
 
 const loadScript = (src) => {
   return new Promise((resolve) => {
@@ -14,13 +15,6 @@ const loadScript = (src) => {
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
-};
-
-// UPI Details
-const upiDetails = {
-  phonepe: { id: '9392881913@ybl', mobile: '9392881913', name: 'PhonePe', color: '#5F259F' },
-  gpay: { id: 'varunthejparimi143@oksbi', mobile: '9392881913', name: 'GPay', color: '#4285F4' },
-  paytm: { id: '9392881913@ptsbi', mobile: '9392881913', name: 'Paytm', color: '#00BAF2' }
 };
 
 const PaymentPage = () => {
@@ -41,31 +35,6 @@ const PaymentPage = () => {
   const [status, setStatus] = useState('idle');
   const [paymentDetails, setPaymentDetails] = useState(null);
   const [invoicePdf, setInvoicePdf] = useState(null);
-
-  // Custom UI Modals
-  const [activeModal, setActiveModal] = useState(null); // 'upi', 'card', null
-
-  // UPI State
-  const [activeUpiTab, setActiveUpiTab] = useState('phonepe');
-  const [copiedField, setCopiedField] = useState(''); // 'mobile', 'upi', ''
-  const [qrCodeUrl, setQrCodeUrl] = useState('');
-  const [showUtrInput, setShowUtrInput] = useState(false);
-  const [utr, setUtr] = useState('');
-
-  useEffect(() => {
-    if (activeModal === 'upi' && amountToPay > 0) {
-      const currentDetail = upiDetails[activeUpiTab] || upiDetails.phonepe;
-      const upiUri = `upi://pay?pa=${currentDetail.id}&pn=${encodeURIComponent('Varun Thej Parimi')}&am=${amountToPay}&cu=INR&tn=${encodeURIComponent(formData.projectName || 'Homies Studio Payment')}`;
-      QRCode.toDataURL(upiUri, { width: 240, margin: 2, color: { dark: '#000000', light: '#ffffff' } })
-        .then(url => setQrCodeUrl(url))
-        .catch(err => console.error('QR code generation error:', err));
-    }
-  }, [activeModal, activeUpiTab, amountToPay, formData.projectName]);
-
-  // Card State
-  const [cardData, setCardData] = useState({ number: '', name: '', expiry: '', cvv: '' });
-  const [isFlipped, setIsFlipped] = useState(false);
-  const [isProcessingCard, setIsProcessingCard] = useState(false);
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -117,10 +86,10 @@ const PaymentPage = () => {
     doc.text('BILLED TO:', 14, 60);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text(formData.clientName, 14, 66);
-    doc.text(formData.projectName, 14, 72);
-    doc.text(formData.clientPhone, 14, 78);
-    doc.text(formData.clientEmail, 14, 84);
+    doc.text(formData.clientName || 'Valued Client', 14, 66);
+    doc.text(formData.projectName || 'Project', 14, 72);
+    doc.text(formData.clientPhone || '', 14, 78);
+    doc.text(formData.clientEmail || '', 14, 84);
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
@@ -135,7 +104,7 @@ const PaymentPage = () => {
       startY: 95,
       head: [['#', 'Service', 'Description', 'Amount']],
       body: [
-        ['1', formData.serviceType, formData.projectDesc.substring(0, 45) + '...', `INR ${amountToPay.toLocaleString('en-IN')}`]
+        ['1', formData.serviceType || 'Service', (formData.projectDesc || 'Development Services').substring(0, 45) + '...', `INR ${(amountToPay || 0).toLocaleString('en-IN')}`]
       ],
       theme: 'grid',
       headStyles: { fillColor: [245, 166, 35] }
@@ -143,11 +112,11 @@ const PaymentPage = () => {
 
     const finalY = doc.lastAutoTable.finalY + 15;
     doc.setFontSize(10);
-    doc.text(`Subtotal: INR ${amountToPay.toLocaleString('en-IN')}`, 120, finalY);
-    doc.text(`Payment Type: ${formData.paymentType}`, 120, finalY + 6);
-    doc.text(`Amount Paid Today: INR ${amountToPay.toLocaleString('en-IN')}`, 120, finalY + 12);
+    doc.text(`Subtotal: INR ${(amountToPay || 0).toLocaleString('en-IN')}`, 120, finalY);
+    doc.text(`Payment Type: ${formData.paymentType || 'Full Payment'}`, 120, finalY + 6);
+    doc.text(`Amount Paid Today: INR ${(amountToPay || 0).toLocaleString('en-IN')}`, 120, finalY + 12);
     if (formData.paymentType === '50% Deposit') {
-      doc.text(`Remaining Balance: INR ${amountToPay.toLocaleString('en-IN')}`, 120, finalY + 18);
+      doc.text(`Remaining Balance: INR ${(amountToPay || 0).toLocaleString('en-IN')}`, 120, finalY + 18);
     }
     doc.text(`Payment Method: ${method}`, 14, finalY);
     doc.text(`Transaction ID: ${txnId}`, 14, finalY + 6);
@@ -168,7 +137,6 @@ const PaymentPage = () => {
   };
 
   const handlePaymentSuccess = async (txnId, method) => {
-    setActiveModal(null);
     setStatus('success');
     setPaymentDetails({ txnId });
 
@@ -213,101 +181,75 @@ const PaymentPage = () => {
     }
   };
 
-const RAZORPAY_PAYMENT_LINK = 'https://rzp.io/rzp/2wIs5eh';
+  // Auto-detect redirect back from Razorpay after payment completion
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentId = urlParams.get('razorpay_payment_id') || urlParams.get('payment_id') || urlParams.get('razorpay_payment_link_id');
+    const paymentStatus = urlParams.get('status') || urlParams.get('razorpay_payment_link_status');
 
-  const openRazorpay = () => {
-    window.open(RAZORPAY_PAYMENT_LINK, '_blank', 'noopener,noreferrer');
-  };
-
-  const handleSelectPaymentMethod = (method) => {
-    if (method === 'upi') {
-      setActiveModal('upi');
-      setShowUtrInput(false);
-      setUtr('');
-    } else if (method === 'card') {
-      setActiveModal('card');
-    } else if (method === 'netbanking') {
-      openRazorpay({ card: false, upi: false, netbanking: true, wallet: false });
-    } else if (method === 'checkout') {
-      openRazorpay(null);
+    if (paymentId || paymentStatus === 'paid' || paymentStatus === 'success') {
+      const txnId = paymentId || `RZP-${Date.now()}`;
+      handlePaymentSuccess(txnId, 'Razorpay');
     }
-  };
+  }, []);
 
-  // UPI Helpers
-  const triggerUpiDeepLink = (app) => {
-    const { id } = upiDetails[app];
-    const encodedPn = encodeURIComponent('Varun Thej Parimi');
-    const encodedTn = encodeURIComponent(formData.projectName || 'Homies Studio Payment');
-    const deepLink = `upi://pay?pa=${encodeURIComponent(id)}&pn=${encodedPn}&am=${amountToPay}&cu=INR&tn=${encodedTn}`;
-    window.location.href = deepLink;
-  };
-
-  const handleCopyText = (text, fieldName) => {
-    navigator.clipboard.writeText(text);
-    setCopiedField(fieldName);
-    setTimeout(() => setCopiedField(''), 2000);
-  };
-
-  const handleUpiSubmit = (e) => {
-    e.preventDefault();
-    if (!utr) return;
-    handlePaymentSuccess(utr, `UPI - ${upiDetails[activeUpiTab].name}`);
-  };
-
-  // Card Helpers
-  const handleCardChange = (e) => {
-    let { name, value } = e.target;
-    if (name === 'number') {
-      value = value.replace(/\D/g, '').substring(0, 16);
-      value = value.replace(/(\d{4})/g, '$1 ').trim();
-    } else if (name === 'expiry') {
-      value = value.replace(/\D/g, '').substring(0, 4);
-      if (value.length > 2) value = `${value.substring(0,2)}/${value.substring(2)}`;
-    } else if (name === 'cvv') {
-      value = value.replace(/\D/g, '').substring(0, 3);
-    } else if (name === 'name') {
-      value = value.toUpperCase();
+  const openRazorpay = async () => {
+    const key = import.meta.env.VITE_RAZORPAY_KEY;
+    if (key && key !== 'rzp_test_YOUR_KEY_HERE') {
+      const res = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
+      if (res) {
+        const options = {
+          key: key,
+          amount: amountToPay * 100,
+          currency: 'INR',
+          name: 'Homies Studio',
+          description: `${formData.projectName || 'Project'} - ${formData.serviceType}`,
+          image: logoImg,
+          handler: async function (response) {
+            handlePaymentSuccess(response.razorpay_payment_id || `RZP-${Date.now()}`, 'Razorpay');
+          },
+          prefill: {
+            name: formData.clientName,
+            email: formData.clientEmail,
+            contact: formData.clientPhone
+          },
+          theme: { color: '#F5A623' }
+        };
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+        return;
+      }
     }
-    setCardData({ ...cardData, [name]: value });
-  };
 
-  const getCardNetwork = (num) => {
-    if (num.startsWith('4')) return 'Visa';
-    if (num.startsWith('5')) return 'Mastercard';
-    if (num.startsWith('6')) return 'RuPay';
-    return '';
-  };
-
-  const processCardPayment = (e) => {
-    e.preventDefault();
-    setIsProcessingCard(true);
-    // Simulate processing delay before passing to razorpay
-    setTimeout(() => {
-      setIsProcessingCard(false);
-      openRazorpay({ card: true, upi: false, netbanking: false, wallet: false });
-    }, 1500);
+    // Direct Payment Page link
+    window.location.href = RAZORPAY_PAYMENT_LINK;
   };
 
   if (status === 'success') {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', padding: '5vw' }}>
-        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ textAlign: 'center', background: 'rgba(255,255,255,0.03)', padding: '4rem 3rem', borderRadius: '24px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+        <Helmet>
+          <title>Payment Successful | Homies Studio</title>
+        </Helmet>
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ textAlign: 'center', background: 'rgba(255,255,255,0.03)', padding: '4rem 3rem', borderRadius: '24px', border: '1px solid rgba(16, 185, 129, 0.3)', maxWidth: '500px', width: '100%' }}>
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: 'spring' }} style={{ width: '80px', height: '80px', background: '#10b981', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
             <span style={{ color: '#fff', fontSize: '2.5rem' }}>✓</span>
           </motion.div>
           <h2 style={{ fontSize: '2rem', color: '#fff', marginBottom: '1rem' }}>Payment Successful!</h2>
           <p style={{ color: '#aaa', marginBottom: '0.5rem' }}>Transaction ID: {paymentDetails?.txnId}</p>
-          <p style={{ color: '#10b981', marginBottom: '2rem' }}>Your invoice has been generated.<br/>We'll WhatsApp you shortly!</p>
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+          <p style={{ color: '#10b981', marginBottom: '2rem' }}>Your Tax Invoice has been generated and downloaded.<br/>We've also notified you via WhatsApp!</p>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button onClick={() => {
-              const link = document.createElement('a');
-              link.href = invoicePdf;
-              link.download = `INV-${paymentDetails?.txnId}.pdf`;
-              link.click();
-            }} style={{ padding: '0.8rem 2rem', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+              if (invoicePdf) {
+                const link = document.createElement('a');
+                link.href = invoicePdf;
+                link.download = `INV-${paymentDetails?.txnId}.pdf`;
+                link.click();
+              }
+            }} style={{ padding: '0.8rem 1.8rem', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
               Download Invoice PDF
             </button>
-            <button onClick={() => window.location.href = '/'} style={{ padding: '0.8rem 2rem', background: '#F5A623', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Back to Home</button>
+            <button onClick={() => window.location.href = '/'} style={{ padding: '0.8rem 1.8rem', background: '#F5A623', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Back to Home</button>
           </div>
         </motion.div>
       </div>
@@ -418,13 +360,11 @@ const RAZORPAY_PAYMENT_LINK = 'https://rzp.io/rzp/2wIs5eh';
                 </div>
               </div>
 
-              <h4 style={{ fontSize: '1.2rem', color: '#fff', marginBottom: '1.5rem' }}>Select Payment Method</h4>
+              <h4 style={{ fontSize: '1.2rem', color: '#fff', marginBottom: '1.5rem' }}>Proceed with Razorpay</h4>
               
-              {/* Direct Razorpay Instant Payment Link */}
-              <a 
-                href="https://rzp.io/rzp/2wIs5eh"
-                target="_blank"
-                rel="noopener noreferrer"
+              {/* Direct Razorpay Checkout Action */}
+              <button 
+                onClick={openRazorpay}
                 style={{ 
                   width: '100%', 
                   padding: '1.3rem 1.5rem', 
@@ -441,195 +381,18 @@ const RAZORPAY_PAYMENT_LINK = 'https://rzp.io/rzp/2wIs5eh';
                   alignItems: 'center',
                   justify: 'center',
                   gap: '0.8rem',
-                  textDecoration: 'none',
                   transition: 'transform 0.2s, boxShadow 0.2s'
                 }}
                 onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
                 onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
               >
-                💳 Pay Now via Razorpay Link (PhonePe, GPay, Paytm, Cards & NetBanking) ↗
-              </a>
+                💳 Pay ₹{amountToPay.toLocaleString('en-IN')} via Razorpay (PhonePe, GPay, Paytm, Cards & NetBanking)
+              </button>
 
-              <div style={{ textAlign: 'center', color: '#888', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-                — OR SELECT MANUAL PAYMENT METHOD —
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-                {[
-                  { id: 'upi', label: 'Manual UPI (QR Code & Mobile)', icon: '📱' },
-                  { id: 'card', label: 'Credit / Debit Card', icon: '💳' },
-                  { id: 'netbanking', label: 'Net Banking', icon: '🏦' }
-                ].map(m => (
-                  <button key={m.id} onClick={() => handleSelectPaymentMethod(m.id)} style={{ padding: '1.2rem 1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', fontSize: '0.95rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', transition: 'all 0.3s' }} onMouseEnter={e => {e.currentTarget.style.borderColor = '#F5A623'; e.currentTarget.style.boxShadow = '0 0 15px rgba(245, 166, 35, 0.2)'}} onMouseLeave={e => {e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none'}}>
-                    <span style={{ fontSize: '1.8rem' }}>{m.icon}</span>
-                    {m.label}
-                  </button>
-                ))}
+              <div style={{ textAlign: 'center', color: '#888', fontSize: '0.85rem' }}>
+                🔒 256-bit SSL Encrypted Payment via Razorpay
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* UPI MODAL */}
-        <AnimatePresence>
-          {activeModal === 'upi' && (
-            <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-              <motion.div initial={{ scale: 0.95, y: 50, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 50, opacity: 0 }} style={{ background: '#111', border: '1px solid #F5A623', borderRadius: '24px', padding: '1.8rem', width: '100%', maxWidth: '440px', position: 'relative', overflowY: 'auto', maxHeight: '90vh', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
-                <button onClick={() => setActiveModal(null)} style={{ position: 'absolute', top: '1rem', right: '1.2rem', background: 'none', border: 'none', color: '#aaa', fontSize: '2rem', cursor: 'pointer', zIndex: 10 }}>&times;</button>
-                
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.2rem', marginTop: '0.5rem' }}>
-                  {Object.keys(upiDetails).map(key => {
-                    const isActive = activeUpiTab === key;
-                    const c = upiDetails[key].color;
-                    return (
-                      <button key={key} onClick={() => { setActiveUpiTab(key); setShowUtrInput(false); }} style={{ flex: 1, padding: '0.6rem 0', borderRadius: '100px', border: `1px solid ${c}`, background: isActive ? c : 'transparent', color: '#fff', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.3s' }}>
-                        {upiDetails[key].name}
-                      </button>
-                    )
-                  })}
-                </div>
-
-                <motion.div key={activeUpiTab} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
-                  <div style={{ textAlign: 'center', marginBottom: '1.2rem' }}>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff', marginBottom: '0.3rem' }}>Paying ₹{amountToPay.toLocaleString('en-IN')}</div>
-                    <div style={{ fontSize: '0.85rem', color: '#aaa' }}>Varun Thej Parimi (Homies Studio)</div>
-                  </div>
-
-                  {/* Option 1: Scan QR Code */}
-                  {qrCodeUrl && (
-                    <div style={{ background: '#fff', padding: '0.8rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '0 auto 1.2rem', maxWidth: '210px', boxShadow: '0 8px 24px rgba(245, 166, 35, 0.15)' }}>
-                      <img src={qrCodeUrl} alt="UPI QR Code" style={{ width: '100%', height: 'auto', display: 'block' }} />
-                      <div style={{ color: '#000', fontSize: '0.72rem', fontWeight: 'bold', marginTop: '0.3rem', textAlign: 'center' }}>
-                        📷 Option 1: Scan QR Code with PhonePe / GPay / Paytm
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Option 2: Pay via Mobile Number */}
-                  <div style={{ background: 'rgba(245, 166, 35, 0.08)', border: '1px solid rgba(245, 166, 35, 0.3)', borderRadius: '14px', padding: '0.9rem 1rem', marginBottom: '1.2rem' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#aaa', marginBottom: '0.3rem' }}>Option 2: Pay via Mobile Number (PhonePe / GPay / Paytm)</div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-                      <div style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#F5A623', fontFamily: 'monospace' }}>9392881913</div>
-                      <button onClick={() => handleCopyText('9392881913', 'mobile')} style={{ background: '#F5A623', color: '#000', border: 'none', padding: '0.4rem 0.9rem', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 'bold', cursor: 'pointer' }}>
-                        {copiedField === 'mobile' ? 'Copied ✓' : 'Copy Number'}
-                      </button>
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: '#bbb', lineHeight: 1.4 }}>
-                      Open PhonePe, GPay, or Paytm, search <strong>9392881913</strong>, and send ₹{amountToPay.toLocaleString('en-IN')}.
-                    </div>
-                  </div>
-
-                  {/* Option 3: Instant Online Gateway */}
-                  <button onClick={() => openRazorpay(null)} style={{ width: '100%', padding: '0.9rem', background: upiDetails[activeUpiTab].color, color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginBottom: '1.2rem', boxShadow: `0 8px 20px ${upiDetails[activeUpiTab].color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                    💳 Option 3: Pay via Online Gateway (Cards / NetBanking / UPI)
-                  </button>
-
-                  {/* UPI ID Details */}
-                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.7rem 1rem', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ fontSize: '0.72rem', color: '#aaa' }}>{upiDetails[activeUpiTab].name} VPA / UPI ID</div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', fontFamily: 'monospace' }}>{upiDetails[activeUpiTab].id}</div>
-                    </div>
-                    <button onClick={() => handleCopyText(upiDetails[activeUpiTab].id, 'upi')} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '0.3rem 0.7rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 'bold', cursor: 'pointer' }}>
-                      {copiedField === 'upi' ? 'Copied ✓' : 'Copy UPI ID'}
-                    </button>
-                  </div>
-
-                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.2rem' }}>
-                    {!showUtrInput ? (
-                      <button onClick={() => setShowUtrInput(true)} style={{ width: '100%', padding: '0.9rem', background: '#F5A623', color: '#000', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}>
-                        I've Paid
-                      </button>
-                    ) : (
-                      <form onSubmit={handleUpiSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                        <input type="text" placeholder="Enter 12-digit UTR / Ref No." value={utr} onChange={(e) => setUtr(e.target.value)} required style={{ width: '100%', padding: '0.8rem', background: 'rgba(255,255,255,0.05)', border: '1px solid #F5A623', borderRadius: '8px', color: '#fff', textAlign: 'center', fontSize: '1rem', letterSpacing: '0.1em' }} />
-                        <button type="submit" style={{ width: '100%', padding: '0.9rem', background: '#10b981', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}>Submit UTR & Generate Invoice</button>
-                      </form>
-                    )}
-                  </div>
-                </motion.div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-
-        {/* CUSTOM CARD MODAL */}
-        <AnimatePresence>
-          {activeModal === 'card' && (
-            <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-              <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} style={{ background: '#111', border: '1px solid #333', borderRadius: '24px', padding: '2.5rem', width: '100%', maxWidth: '450px', position: 'relative' }}>
-                <button onClick={() => setActiveModal(null)} style={{ position: 'absolute', top: '1rem', right: '1.2rem', background: 'none', border: 'none', color: '#aaa', fontSize: '2rem', cursor: 'pointer', zIndex: 10 }}>&times;</button>
-                
-                <h3 style={{ fontSize: '1.3rem', color: '#fff', marginBottom: '1.5rem', textAlign: 'center' }}>Secure Card Payment</h3>
-
-                {/* 3D Card Preview */}
-                <div style={{ perspective: '1000px', marginBottom: '2rem', height: '220px' }}>
-                  <div style={{ width: '100%', height: '100%', position: 'relative', transition: 'transform 0.6s', transformStyle: 'preserve-3d', transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0)' }}>
-                    {/* Front */}
-                    <div style={{ position: 'absolute', width: '100%', height: '100%', backfaceVisibility: 'hidden', background: 'linear-gradient(135deg, #2c3e50, #000000)', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 15px 35px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ width: '40px', height: '30px', background: 'linear-gradient(135deg, #e0e0e0, #999)', borderRadius: '4px' }}></div>
-                        <div style={{ color: '#fff', fontWeight: 'bold', fontStyle: 'italic', fontSize: '1.2rem' }}>{getCardNetwork(cardData.number) || 'CARD'}</div>
-                      </div>
-                      <div>
-                        <div style={{ color: '#fff', fontSize: '1.4rem', letterSpacing: '0.15em', fontFamily: 'monospace', marginBottom: '1rem' }}>
-                          {cardData.number || '•••• •••• •••• ••••'}
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', fontSize: '0.8rem', textTransform: 'uppercase' }}>
-                          <div>
-                            <div style={{ fontSize: '0.6rem' }}>Cardholder Name</div>
-                            <div style={{ color: '#fff', fontSize: '0.9rem' }}>{cardData.name || 'YOUR NAME'}</div>
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '0.6rem' }}>Expires</div>
-                            <div style={{ color: '#fff', fontSize: '0.9rem' }}>{cardData.expiry || 'MM/YY'}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    {/* Back */}
-                    <div style={{ position: 'absolute', width: '100%', height: '100%', backfaceVisibility: 'hidden', background: 'linear-gradient(135deg, #1a1a1a, #000000)', borderRadius: '16px', transform: 'rotateY(180deg)', boxShadow: '0 15px 35px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                      <div style={{ width: '100%', height: '40px', background: '#000', marginTop: '20px' }}></div>
-                      <div style={{ padding: '20px' }}>
-                        <div style={{ background: '#fff', height: '35px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '15px', color: '#000', fontFamily: 'monospace', fontSize: '1.1rem', borderRadius: '4px' }}>
-                          {cardData.cvv ? '•'.repeat(cardData.cvv.length) : '•••'}
-                        </div>
-                        <div style={{ color: '#666', fontSize: '0.6rem', marginTop: '10px', textAlign: 'right' }}>CVV NUMBER</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <form onSubmit={processCardPayment} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.4rem', color: '#aaa', fontSize: '0.8rem' }}>Cardholder Name</label>
-                    <input type="text" name="name" value={cardData.name} onChange={handleCardChange} onFocus={() => setIsFlipped(false)} required style={{ width: '100%', padding: '0.8rem', background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px', color: '#fff' }} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '0.4rem', color: '#aaa', fontSize: '0.8rem' }}>Card Number</label>
-                    <input type="text" name="number" value={cardData.number} onChange={handleCardChange} onFocus={() => setIsFlipped(false)} required placeholder="0000 0000 0000 0000" style={{ width: '100%', padding: '0.8rem', background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px', color: '#fff', fontFamily: 'monospace', fontSize: '1.1rem' }} />
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div>
-                      <label style={{ display: 'block', marginBottom: '0.4rem', color: '#aaa', fontSize: '0.8rem' }}>Expiry</label>
-                      <input type="text" name="expiry" value={cardData.expiry} onChange={handleCardChange} onFocus={() => setIsFlipped(false)} required placeholder="MM/YY" style={{ width: '100%', padding: '0.8rem', background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px', color: '#fff', textAlign: 'center' }} />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', marginBottom: '0.4rem', color: '#aaa', fontSize: '0.8rem' }}>CVV</label>
-                      <input type="password" name="cvv" value={cardData.cvv} onChange={handleCardChange} onFocus={() => setIsFlipped(true)} onBlur={() => setIsFlipped(false)} required placeholder="•••" style={{ width: '100%', padding: '0.8rem', background: '#1a1a1a', border: '1px solid #333', borderRadius: '8px', color: '#fff', textAlign: 'center', letterSpacing: '0.2em' }} />
-                    </div>
-                  </div>
-                  
-                  <button type="submit" disabled={isProcessingCard} style={{ width: '100%', padding: '1rem', background: '#F5A623', color: '#000', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', marginTop: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    {isProcessingCard ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }} style={{ width: '20px', height: '20px', border: '3px solid #000', borderTopColor: 'transparent', borderRadius: '50%' }}></motion.div> : `Pay ₹${amountToPay.toLocaleString('en-IN')} Securely`}
-                  </button>
-                  
-                  <div style={{ textAlign: 'center', marginTop: '1rem', color: '#666', fontSize: '0.75rem' }}>
-                    🔒 256-bit SSL Encrypted • Your card details are never stored
-                  </div>
-                </form>
-              </motion.div>
-            </div>
           )}
         </AnimatePresence>
 
