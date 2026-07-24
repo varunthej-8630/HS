@@ -443,15 +443,46 @@ const PaymentPage = () => {
               </div>
 
               <h4 style={{ fontSize: '1.2rem', color: '#fff', marginBottom: '1.5rem' }}>Select Payment Method</h4>
+              
+              {/* Direct Razorpay Instant Checkout */}
+              <button 
+                onClick={() => openRazorpay(null)} 
+                style={{ 
+                  width: '100%', 
+                  padding: '1.2rem 1.5rem', 
+                  background: 'linear-gradient(135deg, #F5A623, #d98207)', 
+                  color: '#000', 
+                  border: 'none', 
+                  borderRadius: '16px', 
+                  fontWeight: 'bold', 
+                  fontSize: '1.2rem', 
+                  cursor: 'pointer', 
+                  marginBottom: '1.5rem', 
+                  boxShadow: '0 10px 30px rgba(245, 166, 35, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justify: 'center',
+                  gap: '0.8rem',
+                  transition: 'transform 0.2s, boxShadow 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                💳 Pay Now via Razorpay (Instant UPI, Cards & NetBanking)
+              </button>
+
+              <div style={{ textAlign: 'center', color: '#888', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+                — OR SELECT MANUAL PAYMENT METHOD —
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
                 {[
-                  { id: 'upi', label: 'UPI (GPay, PhonePe, Paytm)', icon: '📱' },
+                  { id: 'upi', label: 'Manual UPI (QR Code & Mobile)', icon: '📱' },
                   { id: 'card', label: 'Credit / Debit Card', icon: '💳' },
-                  { id: 'netbanking', label: 'Net Banking', icon: '🏦' },
-                  { id: 'checkout', label: 'More Options (Razorpay)', icon: '📲' }
+                  { id: 'netbanking', label: 'Net Banking', icon: '🏦' }
                 ].map(m => (
-                  <button key={m.id} onClick={() => handleSelectPaymentMethod(m.id)} style={{ padding: '1.5rem 1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', transition: 'all 0.3s' }} onMouseEnter={e => {e.currentTarget.style.borderColor = '#F5A623'; e.currentTarget.style.boxShadow = '0 0 15px rgba(245, 166, 35, 0.2)'}} onMouseLeave={e => {e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none'}}>
-                    <span style={{ fontSize: '2rem' }}>{m.icon}</span>
+                  <button key={m.id} onClick={() => handleSelectPaymentMethod(m.id)} style={{ padding: '1.2rem 1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', fontSize: '0.95rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', transition: 'all 0.3s' }} onMouseEnter={e => {e.currentTarget.style.borderColor = '#F5A623'; e.currentTarget.style.boxShadow = '0 0 15px rgba(245, 166, 35, 0.2)'}} onMouseLeave={e => {e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none'}}>
+                    <span style={{ fontSize: '1.8rem' }}>{m.icon}</span>
                     {m.label}
                   </button>
                 ))}
