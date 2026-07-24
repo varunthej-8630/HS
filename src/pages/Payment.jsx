@@ -118,7 +118,6 @@ const PaymentPage = () => {
     doc.text('TAX INVOICE', 14, 28);
     doc.text(`Invoice Number: ${invoiceNo}`, 14, 34);
     doc.text(`Invoice Date: ${today}`, 14, 40);
-    doc.text(`Due Date: ${today}`, 14, 46);
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
@@ -152,11 +151,8 @@ const PaymentPage = () => {
     const finalY = doc.lastAutoTable.finalY + 15;
     doc.setFontSize(10);
     doc.text(`Subtotal: INR ${(amount || 0).toLocaleString('en-IN')}`, 120, finalY);
-    doc.text(`Payment Type: ${client.paymentType || 'Full Payment'}`, 120, finalY + 6);
-    doc.text(`Amount Paid Today: INR ${(amount || 0).toLocaleString('en-IN')}`, 120, finalY + 12);
-    if (client.paymentType === '50% Deposit') {
-      doc.text(`Remaining Balance: INR ${(amount || 0).toLocaleString('en-IN')}`, 120, finalY + 18);
-    }
+    doc.text(`Total Amount Paid: INR ${(amount || 0).toLocaleString('en-IN')}`, 120, finalY + 6);
+
     doc.text(`Payment Method: ${method}`, 14, finalY);
     doc.text(`Transaction ID: ${txnId}`, 14, finalY + 6);
     doc.setTextColor(16, 185, 129);
@@ -233,11 +229,12 @@ const PaymentPage = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentId = urlParams.get('razorpay_payment_id') || urlParams.get('payment_id') || urlParams.get('razorpay_payment_link_id');
     const paymentStatus = urlParams.get('status') || urlParams.get('razorpay_payment_link_status');
+    const queryAmount = urlParams.get('amount') || urlParams.get('amt');
 
     if (paymentId || paymentStatus === 'paid' || paymentStatus === 'success' || urlParams.has('payment_id')) {
       // Restore pending payment data from localStorage
       let restoredForm = null;
-      let restoredAmount = null;
+      let restoredAmount = queryAmount ? Number(queryAmount) : null;
 
       try {
         const saved = localStorage.getItem('hs_pending_payment');
@@ -247,7 +244,7 @@ const PaymentPage = () => {
             restoredForm = parsed.formData;
             setFormData(parsed.formData);
           }
-          if (parsed.amountToPay) {
+          if (!restoredAmount && parsed.amountToPay) {
             restoredAmount = parsed.amountToPay;
             setAmountToPay(parsed.amountToPay);
           }
