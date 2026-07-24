@@ -432,33 +432,6 @@ const PaymentPage = () => {
                 style={{ width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}
               ></div>
 
-              {/* Direct Razorpay Checkout Action */}
-              <button 
-                onClick={openRazorpay}
-                style={{ 
-                  width: '100%', 
-                  padding: '1.3rem 1.5rem', 
-                  background: 'linear-gradient(135deg, #F5A623, #d98207)', 
-                  color: '#000', 
-                  border: 'none', 
-                  borderRadius: '16px', 
-                  fontWeight: 'bold', 
-                  fontSize: '1.25rem', 
-                  cursor: 'pointer', 
-                  marginBottom: '1.5rem', 
-                  boxShadow: '0 10px 30px rgba(245, 166, 35, 0.35)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justify: 'center',
-                  gap: '0.8rem',
-                  transition: 'transform 0.2s, boxShadow 0.2s'
-                }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-              >
-                💳 Pay ₹{amountToPay.toLocaleString('en-IN')} via Razorpay (PhonePe, GPay, Paytm, Cards & NetBanking)
-              </button>
-
               <div style={{ textAlign: 'center', color: '#888', fontSize: '0.85rem' }}>
                 🔒 256-bit SSL Encrypted Payment via Razorpay
               </div>
