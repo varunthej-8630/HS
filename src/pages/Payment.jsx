@@ -213,34 +213,10 @@ const PaymentPage = () => {
     }
   };
 
-  const openRazorpay = async (methodConfig) => {
-    const res = await loadScript('https://checkout.razorpay.com/v1/checkout.js');
-    if (!res) return alert('Razorpay SDK failed to load');
+const RAZORPAY_PAYMENT_LINK = 'https://rzp.io/rzp/2wIs5eh';
 
-    const options = {
-      key: import.meta.env.VITE_RAZORPAY_KEY || 'rzp_test_PLACEHOLDER',
-      amount: amountToPay * 100,
-      currency: 'INR',
-      name: 'Homies Studio',
-      description: `${formData.projectName} - ${formData.serviceType}`,
-      image: '/assets/icon.png',
-      handler: async function (response) {
-        handlePaymentSuccess(response.razorpay_payment_id, 'Razorpay');
-      },
-      prefill: {
-        name: formData.clientName,
-        email: formData.clientEmail,
-        contact: formData.clientPhone
-      },
-      theme: { color: '#F5A623' }
-    };
-
-    if (methodConfig) {
-      options.method = methodConfig;
-    }
-
-    const rzp = new window.Razorpay(options);
-    rzp.open();
+  const openRazorpay = () => {
+    window.open(RAZORPAY_PAYMENT_LINK, '_blank', 'noopener,noreferrer');
   };
 
   const handleSelectPaymentMethod = (method) => {
@@ -444,32 +420,35 @@ const PaymentPage = () => {
 
               <h4 style={{ fontSize: '1.2rem', color: '#fff', marginBottom: '1.5rem' }}>Select Payment Method</h4>
               
-              {/* Direct Razorpay Instant Checkout */}
-              <button 
-                onClick={() => openRazorpay(null)} 
+              {/* Direct Razorpay Instant Payment Link */}
+              <a 
+                href="https://rzp.io/rzp/2wIs5eh"
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{ 
                   width: '100%', 
-                  padding: '1.2rem 1.5rem', 
+                  padding: '1.3rem 1.5rem', 
                   background: 'linear-gradient(135deg, #F5A623, #d98207)', 
                   color: '#000', 
                   border: 'none', 
                   borderRadius: '16px', 
                   fontWeight: 'bold', 
-                  fontSize: '1.2rem', 
+                  fontSize: '1.25rem', 
                   cursor: 'pointer', 
                   marginBottom: '1.5rem', 
-                  boxShadow: '0 10px 30px rgba(245, 166, 35, 0.3)',
+                  boxShadow: '0 10px 30px rgba(245, 166, 35, 0.35)',
                   display: 'flex',
                   alignItems: 'center',
                   justify: 'center',
                   gap: '0.8rem',
+                  textDecoration: 'none',
                   transition: 'transform 0.2s, boxShadow 0.2s'
                 }}
                 onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
                 onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
               >
-                💳 Pay Now via Razorpay (Instant UPI, Cards & NetBanking)
-              </button>
+                💳 Pay Now via Razorpay Link (PhonePe, GPay, Paytm, Cards & NetBanking) ↗
+              </a>
 
               <div style={{ textAlign: 'center', color: '#888', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
                 — OR SELECT MANUAL PAYMENT METHOD —
