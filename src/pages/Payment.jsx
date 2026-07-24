@@ -72,6 +72,30 @@ const PaymentPage = () => {
     setStep(2);
   };
 
+  // Load Razorpay Embed Button Bundle JS on Step 2
+  useEffect(() => {
+    if (step === 2) {
+      const scriptId = 'razorpay-embed-btn-js';
+      let script = document.getElementById(scriptId);
+      if (!script) {
+        script = document.createElement('script');
+        script.id = scriptId;
+        script.src = 'https://cdn.razorpay.com/static/embed_btn/bundle.js';
+        script.defer = true;
+        script.onload = () => {
+          if (window.__rzp__ && window.__rzp__.init) {
+            window.__rzp__.init();
+          }
+        };
+        document.body.appendChild(script);
+      } else {
+        if (window.__rzp__ && window.__rzp__.init) {
+          window.__rzp__.init();
+        }
+      }
+    }
+  }, [step]);
+
   const generateInvoicePDF = (txnId, method, logoData, activeForm, activeAmount) => {
     const doc = new jsPDF();
     const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
@@ -237,22 +261,6 @@ const PaymentPage = () => {
     }
   }, []);
 
-  // Load Razorpay Embed Button Script on Step 2
-  useEffect(() => {
-    if (step === 2) {
-      const scriptId = 'razorpay-embed-btn-js';
-      if (!document.getElementById(scriptId)) {
-        const script = document.createElement('script');
-        script.defer = true;
-        script.id = scriptId;
-        script.src = 'https://cdn.razorpay.com/static/embed_btn/bundle.js';
-        document.body.appendChild(script);
-      } else if (window.__rzp__ && window.__rzp__.init) {
-        window.__rzp__.init();
-      }
-    }
-  }, [step]);
-
   const openRazorpay = async () => {
     const key = import.meta.env.VITE_RAZORPAY_KEY;
     if (key && key !== 'rzp_test_YOUR_KEY_HERE') {
@@ -273,7 +281,7 @@ const PaymentPage = () => {
             email: formData.clientEmail,
             contact: formData.clientPhone
           },
-          theme: { color: '#F5A623' }
+          theme: { color: '#CD913C' }
         };
         const rzp = new window.Razorpay(options);
         rzp.open();
@@ -421,16 +429,49 @@ const PaymentPage = () => {
               </div>
 
               <h4 style={{ fontSize: '1.2rem', color: '#fff', marginBottom: '1.5rem' }}>Proceed with Razorpay</h4>
-              
-              {/* Official Razorpay Embed Button */}
-              <div 
-                className="razorpay-embed-btn" 
-                data-url="https://pages.razorpay.com/pl_THSoddrEFSykut/view" 
-                data-text="Pay Now via Razorpay" 
-                data-color="#CD913C" 
-                data-size="large"
-                style={{ width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}
-              ></div>
+
+              {/* Official Razorpay Embedded Button Container */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', margin: '1.5rem 0' }}>
+                <div 
+                  className="razorpay-embed-btn" 
+                  data-url="https://pages.razorpay.com/pl_THSoddrEFSykut/view" 
+                  data-text={`Pay ₹${amountToPay.toLocaleString('en-IN')} Now`} 
+                  data-color="#CD913C" 
+                  data-size="large"
+                ></div>
+
+                {/* Direct Action Link Button */}
+                <a 
+                  href="https://pages.razorpay.com/pl_THSoddrEFSykut/view"
+                  onClick={() => {
+                    try {
+                      localStorage.setItem('hs_pending_payment', JSON.stringify({ formData, amountToPay }));
+                    } catch(e){}
+                  }}
+                  style={{ 
+                    width: '100%', 
+                    padding: '1.3rem 1.5rem', 
+                    background: 'linear-gradient(135deg, #CD913C, #a66e1e)', 
+                    color: '#fff', 
+                    border: 'none', 
+                    borderRadius: '16px', 
+                    fontWeight: 'bold', 
+                    fontSize: '1.25rem', 
+                    cursor: 'pointer', 
+                    boxShadow: '0 10px 30px rgba(205, 145, 60, 0.35)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justify: 'center',
+                    gap: '0.8rem',
+                    textDecoration: 'none',
+                    transition: 'transform 0.2s, boxShadow 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  💳 Pay ₹{amountToPay.toLocaleString('en-IN')} via Razorpay Page ↗
+                </a>
+              </div>
 
               <div style={{ textAlign: 'center', color: '#888', fontSize: '0.85rem' }}>
                 🔒 256-bit SSL Encrypted Payment via Razorpay
