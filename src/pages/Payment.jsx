@@ -5,7 +5,7 @@ import autoTable from 'jspdf-autotable';
 import { Helmet } from 'react-helmet-async';
 import logoImg from '../assets/logo.png';
 
-const RAZORPAY_PAYMENT_LINK = 'https://rzp.io/rzp/2wIs5eh';
+const RAZORPAY_PAYMENT_LINK = 'https://pages.razorpay.com/pl_THSoddrEFSykut/view';
 
 const loadScript = (src) => {
   return new Promise((resolve) => {
@@ -237,6 +237,22 @@ const PaymentPage = () => {
     }
   }, []);
 
+  // Load Razorpay Embed Button Script on Step 2
+  useEffect(() => {
+    if (step === 2) {
+      const scriptId = 'razorpay-embed-btn-js';
+      if (!document.getElementById(scriptId)) {
+        const script = document.createElement('script');
+        script.defer = true;
+        script.id = scriptId;
+        script.src = 'https://cdn.razorpay.com/static/embed_btn/bundle.js';
+        document.body.appendChild(script);
+      } else if (window.__rzp__ && window.__rzp__.init) {
+        window.__rzp__.init();
+      }
+    }
+  }, [step]);
+
   const openRazorpay = async () => {
     const key = import.meta.env.VITE_RAZORPAY_KEY;
     if (key && key !== 'rzp_test_YOUR_KEY_HERE') {
@@ -406,6 +422,16 @@ const PaymentPage = () => {
 
               <h4 style={{ fontSize: '1.2rem', color: '#fff', marginBottom: '1.5rem' }}>Proceed with Razorpay</h4>
               
+              {/* Official Razorpay Embed Button */}
+              <div 
+                className="razorpay-embed-btn" 
+                data-url="https://pages.razorpay.com/pl_THSoddrEFSykut/view" 
+                data-text="Pay Now via Razorpay" 
+                data-color="#CD913C" 
+                data-size="large"
+                style={{ width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}
+              ></div>
+
               {/* Direct Razorpay Checkout Action */}
               <button 
                 onClick={openRazorpay}
