@@ -485,45 +485,44 @@ const PaymentPage = () => {
                     <div style={{ fontSize: '0.85rem', color: '#aaa' }}>Varun Thej Parimi (Homies Studio)</div>
                   </div>
 
-                  {/* QR Code Display */}
+                  {/* Option 1: Scan QR Code */}
                   {qrCodeUrl && (
-                    <div style={{ background: '#fff', padding: '0.8rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '0 auto 1.2rem', maxWidth: '220px', boxShadow: '0 8px 24px rgba(245, 166, 35, 0.15)' }}>
+                    <div style={{ background: '#fff', padding: '0.8rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '0 auto 1.2rem', maxWidth: '210px', boxShadow: '0 8px 24px rgba(245, 166, 35, 0.15)' }}>
                       <img src={qrCodeUrl} alt="UPI QR Code" style={{ width: '100%', height: 'auto', display: 'block' }} />
-                      <div style={{ color: '#000', fontSize: '0.75rem', fontWeight: 'bold', marginTop: '0.3rem', textAlign: 'center' }}>
-                        📷 Scan QR Code with PhonePe / GPay / Paytm
+                      <div style={{ color: '#000', fontSize: '0.72rem', fontWeight: 'bold', marginTop: '0.3rem', textAlign: 'center' }}>
+                        📷 Option 1: Scan QR Code with PhonePe / GPay / Paytm
                       </div>
                     </div>
                   )}
 
-                  {/* Mobile Number Option */}
-                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.8rem 1rem', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ fontSize: '0.75rem', color: '#aaa' }}>Mobile Number (PhonePe / GPay / Paytm)</div>
-                      <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#F5A623', fontFamily: 'monospace' }}>9392881913</div>
+                  {/* Option 2: Pay via Mobile Number */}
+                  <div style={{ background: 'rgba(245, 166, 35, 0.08)', border: '1px solid rgba(245, 166, 35, 0.3)', borderRadius: '14px', padding: '0.9rem 1rem', marginBottom: '1.2rem' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#aaa', marginBottom: '0.3rem' }}>Option 2: Pay via Mobile Number (PhonePe / GPay / Paytm)</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#F5A623', fontFamily: 'monospace' }}>9392881913</div>
+                      <button onClick={() => handleCopyText('9392881913', 'mobile')} style={{ background: '#F5A623', color: '#000', border: 'none', padding: '0.4rem 0.9rem', borderRadius: '6px', fontSize: '0.82rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                        {copiedField === 'mobile' ? 'Copied ✓' : 'Copy Number'}
+                      </button>
                     </div>
-                    <button onClick={() => handleCopyText('9392881913', 'mobile')} style={{ background: 'rgba(245, 166, 35, 0.15)', border: '1px solid #F5A623', color: '#F5A623', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}>
-                      {copiedField === 'mobile' ? 'Copied ✓' : 'Copy'}
-                    </button>
+                    <div style={{ fontSize: '0.75rem', color: '#bbb', lineHeight: 1.4 }}>
+                      Open PhonePe, GPay, or Paytm, search <strong>9392881913</strong>, and send ₹{amountToPay.toLocaleString('en-IN')}.
+                    </div>
                   </div>
 
-                  {/* UPI ID Option */}
-                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.8rem 1rem', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ fontSize: '0.75rem', color: '#aaa' }}>{upiDetails[activeUpiTab].name} UPI ID</div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#fff', fontFamily: 'monospace' }}>{upiDetails[activeUpiTab].id}</div>
-                    </div>
-                    <button onClick={() => handleCopyText(upiDetails[activeUpiTab].id, 'upi')} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}>
-                      {copiedField === 'upi' ? 'Copied ✓' : 'Copy'}
-                    </button>
-                  </div>
-
-                  <button onClick={() => triggerUpiDeepLink(activeUpiTab)} style={{ width: '100%', padding: '0.9rem', background: upiDetails[activeUpiTab].color, color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginBottom: '1.2rem', boxShadow: `0 10px 20px ${upiDetails[activeUpiTab].color}40` }}>
-                    Open {upiDetails[activeUpiTab].name} App
+                  {/* Option 3: Instant Online Gateway */}
+                  <button onClick={() => openRazorpay(null)} style={{ width: '100%', padding: '0.9rem', background: upiDetails[activeUpiTab].color, color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginBottom: '1.2rem', boxShadow: `0 8px 20px ${upiDetails[activeUpiTab].color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    💳 Option 3: Pay via Online Gateway (Cards / NetBanking / UPI)
                   </button>
 
-                  <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '10px', padding: '0.7rem 0.9rem', marginBottom: '1.2rem', fontSize: '0.78rem', color: '#a7f3d0', lineHeight: '1.4' }}>
-                    <strong>💡 How to bypass UPI Risk Warnings:</strong><br/>
-                    If Paytm or PhonePe shows a risk policy warning for direct link, either <strong>scan the QR code above</strong> or search mobile number <strong>9392881913</strong> directly in your app.
+                  {/* UPI ID Details */}
+                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.7rem 1rem', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontSize: '0.72rem', color: '#aaa' }}>{upiDetails[activeUpiTab].name} VPA / UPI ID</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', fontFamily: 'monospace' }}>{upiDetails[activeUpiTab].id}</div>
+                    </div>
+                    <button onClick={() => handleCopyText(upiDetails[activeUpiTab].id, 'upi')} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '0.3rem 0.7rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                      {copiedField === 'upi' ? 'Copied ✓' : 'Copy UPI ID'}
+                    </button>
                   </div>
 
                   <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.2rem' }}>
