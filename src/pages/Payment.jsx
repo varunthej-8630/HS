@@ -56,15 +56,30 @@ const PaymentPage = () => {
 
   const generateQuote = (e) => {
     e.preventDefault();
-    setAmountToPay(calculateAmount());
+    const calculated = calculateAmount();
+    setAmountToPay(calculated);
+    
+    // Save state to localStorage so data persists across Razorpay redirect
+    try {
+      localStorage.setItem('hs_pending_payment', JSON.stringify({
+        formData,
+        amountToPay: calculated
+      }));
+    } catch (err) {
+      console.warn("Could not save pending payment to localStorage", err);
+    }
+
     setStep(2);
   };
 
-  const generateInvoicePDF = (txnId, method, logoData) => {
+  const generateInvoicePDF = (txnId, method, logoData, activeForm, activeAmount) => {
     const doc = new jsPDF();
     const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
     const invoiceNo = `INV-${timestamp}`;
     const today = new Date().toLocaleDateString();
+
+    const client = activeForm || formData;
+    const amount = activeAmount || amountToPay;
 
     if (logoData) {
       doc.addImage(logoData, 'PNG', 160, 10, 35, 35);
@@ -86,10 +101,10 @@ const PaymentPage = () => {
     doc.text('BILLED TO:', 14, 60);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text(formData.clientName || 'Valued Client', 14, 66);
-    doc.text(formData.projectName || 'Project', 14, 72);
-    doc.text(formData.clientPhone || '', 14, 78);
-    doc.text(formData.clientEmail || '', 14, 84);
+    doc.text(client.clientName || 'Valued Client', 14, 66);
+    doc.text(client.projectName || 'Project', 14, 72);
+    doc.text(client.clientPhone || '', 14, 78);
+    doc.text(client.clientEmail || '', 14, 84);
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
@@ -104,7 +119,7 @@ const PaymentPage = () => {
       startY: 95,
       head: [['#', 'Service', 'Description', 'Amount']],
       body: [
-        ['1', formData.serviceType || 'Service', (formData.projectDesc || 'Development Services').substring(0, 45) + '...', `INR ${(amountToPay || 0).toLocaleString('en-IN')}`]
+        ['1', client.serviceType || 'Service', (client.projectDesc || 'Development Services').substring(0, 45) + '...', `INR ${(amount || 0).toLocaleString('en-IN')}`]
       ],
       theme: 'grid',
       headStyles: { fillColor: [245, 166, 35] }
@@ -112,11 +127,11 @@ const PaymentPage = () => {
 
     const finalY = doc.lastAutoTable.finalY + 15;
     doc.setFontSize(10);
-    doc.text(`Subtotal: INR ${(amountToPay || 0).toLocaleString('en-IN')}`, 120, finalY);
-    doc.text(`Payment Type: ${formData.paymentType || 'Full Payment'}`, 120, finalY + 6);
-    doc.text(`Amount Paid Today: INR ${(amountToPay || 0).toLocaleString('en-IN')}`, 120, finalY + 12);
-    if (formData.paymentType === '50% Deposit') {
-      doc.text(`Remaining Balance: INR ${(amountToPay || 0).toLocaleString('en-IN')}`, 120, finalY + 18);
+    doc.text(`Subtotal: INR ${(amount || 0).toLocaleString('en-IN')}`, 120, finalY);
+    doc.text(`Payment Type: ${client.paymentType || 'Full Payment'}`, 120, finalY + 6);
+    doc.text(`Amount Paid Today: INR ${(amount || 0).toLocaleString('en-IN')}`, 120, finalY + 12);
+    if (client.paymentType === '50% Deposit') {
+      doc.text(`Remaining Balance: INR ${(amount || 0).toLocaleString('en-IN')}`, 120, finalY + 18);
     }
     doc.text(`Payment Method: ${method}`, 14, finalY);
     doc.text(`Transaction ID: ${txnId}`, 14, finalY + 6);
@@ -136,9 +151,12 @@ const PaymentPage = () => {
     return { invoiceNo, pdfBlobUrl };
   };
 
-  const handlePaymentSuccess = async (txnId, method) => {
+  const handlePaymentSuccess = async (txnId, method, overrideForm, overrideAmount) => {
     setStatus('success');
     setPaymentDetails({ txnId });
+
+    const activeForm = overrideForm || formData;
+    const activeAmount = overrideAmount || amountToPay;
 
     let logoData = null;
     try {
@@ -159,7 +177,7 @@ const PaymentPage = () => {
       console.warn("Logo not found");
     }
 
-    const { pdfBlobUrl } = generateInvoicePDF(txnId, method, logoData);
+    const { pdfBlobUrl } = generateInvoicePDF(txnId, method, logoData, activeForm, activeAmount);
     setInvoicePdf(pdfBlobUrl);
 
     // Call Backend Notification API
@@ -170,8 +188,8 @@ const PaymentPage = () => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          formData,
-          amountToPay,
+          formData: activeForm,
+          amountToPay: activeAmount,
           txnId,
           method
         })
@@ -179,17 +197,43 @@ const PaymentPage = () => {
     } catch (e) {
       console.error("Failed to send notification:", e);
     }
+
+    // Clean up pending storage
+    try {
+      localStorage.removeItem('hs_pending_payment');
+    } catch (e) {}
   };
 
-  // Auto-detect redirect back from Razorpay after payment completion
+  // Auto-detect redirect back from Razorpay Payment Page
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentId = urlParams.get('razorpay_payment_id') || urlParams.get('payment_id') || urlParams.get('razorpay_payment_link_id');
     const paymentStatus = urlParams.get('status') || urlParams.get('razorpay_payment_link_status');
 
-    if (paymentId || paymentStatus === 'paid' || paymentStatus === 'success') {
+    if (paymentId || paymentStatus === 'paid' || paymentStatus === 'success' || urlParams.has('payment_id')) {
+      // Restore pending payment data from localStorage
+      let restoredForm = null;
+      let restoredAmount = null;
+
+      try {
+        const saved = localStorage.getItem('hs_pending_payment');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.formData) {
+            restoredForm = parsed.formData;
+            setFormData(parsed.formData);
+          }
+          if (parsed.amountToPay) {
+            restoredAmount = parsed.amountToPay;
+            setAmountToPay(parsed.amountToPay);
+          }
+        }
+      } catch (err) {
+        console.warn("Could not restore pending payment", err);
+      }
+
       const txnId = paymentId || `RZP-${Date.now()}`;
-      handlePaymentSuccess(txnId, 'Razorpay');
+      handlePaymentSuccess(txnId, 'Razorpay', restoredForm, restoredAmount);
     }
   }, []);
 
@@ -206,7 +250,7 @@ const PaymentPage = () => {
           description: `${formData.projectName || 'Project'} - ${formData.serviceType}`,
           image: logoImg,
           handler: async function (response) {
-            handlePaymentSuccess(response.razorpay_payment_id || `RZP-${Date.now()}`, 'Razorpay');
+            handlePaymentSuccess(response.razorpay_payment_id || `RZP-${Date.now()}`, 'Razorpay', formData, amountToPay);
           },
           prefill: {
             name: formData.clientName,
